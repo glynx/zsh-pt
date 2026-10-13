@@ -1,0 +1,72 @@
+#compdef pt
+
+local -a _pt_completion_candidates _pt_completion_commands
+local -i _pt_completion_rc=1
+_pt_completion_commands=(
+  'activate:Activate an environment' 'set:Assign a variable'
+  'load:Merge an environment or template'
+  'unset:Unset a variable'
+  'edit:Edit defined environment variables'
+  'status:Show managed values' 'rename:Rename the active environment'
+  'save:Save in the current directory' 'list:List environments and templates'
+  'deactivate:Restore managed scalars' 'guard:Configure Enter validation'
+  'help:Show help' '--help:Show help'
+)
+if (( CURRENT == 2 )); then
+  _describe -t commands 'pt command' _pt_completion_commands && _pt_completion_rc=0
+  _pt_completion_names all
+  compadd -a _pt_completion_candidates && _pt_completion_rc=0
+  return $_pt_completion_rc
+fi
+
+case $words[2] in
+  load)
+    local -i _pt_completion_index _pt_completion_template=0 _pt_completion_force=0
+    for (( _pt_completion_index=3; _pt_completion_index < CURRENT; ++_pt_completion_index )); do
+      case $words[$_pt_completion_index] in
+        --template) _pt_completion_template=1 ;;
+        -f|--force) _pt_completion_force=1 ;;
+        *) return 0 ;;
+      esac
+    done
+    if (( ! _pt_completion_template )); then
+      compadd -- --template && _pt_completion_rc=0
+    fi
+    if (( ! _pt_completion_force )); then
+      compadd -- -f --force && _pt_completion_rc=0
+    fi
+    if (( _pt_completion_template )); then
+      _pt_completion_names templates
+    else
+      _pt_completion_names all
+    fi ;;
+  activate)
+    if (( CURRENT == 3 )); then
+      compadd -- --template && _pt_completion_rc=0
+      _pt_completion_names all
+    elif (( CURRENT == 4 )) && [[ $words[3] == --template ]]; then
+      _pt_completion_names templates
+    else
+      return 0
+    fi ;;
+  save)
+    if (( CURRENT == 3 )); then
+      compadd -- --force && _pt_completion_rc=0
+    elif (( CURRENT != 4 )) || [[ $words[3] != --force ]]; then
+      return 0
+    fi
+    _pt_completion_names save ;;
+  set|unset)
+    (( CURRENT == 3 )) || return 0
+    _pt_completion_names parameters ;;
+  rename)
+    (( CURRENT == 3 )) || return 0
+    _pt_completion_names save ;;
+  guard)
+    (( CURRENT == 3 )) || return 0
+    compadd -- off warn block
+    return ;;
+  *) return 0 ;;
+esac
+compadd -a _pt_completion_candidates && _pt_completion_rc=0
+return $_pt_completion_rc

@@ -1,0 +1,7 @@
+# Saved working environments may contain credentials. Keep them local.
+/*.env
+
+# Temporary saves and generated Python bytecode.
+__pycache__/
+*.py[cod]
+.pt-save.*
