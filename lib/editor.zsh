@@ -148,6 +148,10 @@ _pt_preview_widget() {
 }
 
 _pt_accept_line() {
+  if (( ! _pt_active )); then
+    _pt_accept_bypass
+    return
+  fi
   _pt_clear_guard_context
   case $PT_GUARD_MODE in
     off) _pt_guard_pending=0; zle _pt_original_accept_line; return ;;

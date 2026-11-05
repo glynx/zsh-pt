@@ -1082,21 +1082,21 @@ RPROMPT=''
                 output = term.command('[[ $ACCOUNT == baseline && $PASSWORD == "" && ${+NEW} == 0 && $_pt_dirty == 0 ]] && print CANCEL_OK')
                 self.assertIn(b"\r\nCANCEL_OK\r\n", output)
 
-    def test_hidden_input_and_cancellation(self):
+    def test_visible_input_and_cancellation(self):
         term = self.terminal()
         term.command("pt scratch")
         term.send("pt set PASSWORD\r")
         term.expect("Ctrl-C to cancel): ")
-        term.send("synthetic-hidden-input\r")
+        term.send("synthetic-visible-input\r")
         output = term.expect("PTREADY> ")
-        self.assertNotIn(b"synthetic-hidden-input", output)
-        output = term.command('[[ $PASSWORD == synthetic-hidden-input ]] && print INPUT_OK')
+        self.assertIn(b"synthetic-visible-input", output)
+        output = term.command('[[ $PASSWORD == synthetic-visible-input ]] && print INPUT_OK')
         self.assertIn(b"\r\nINPUT_OK\r\n", output)
         term.send("pt set PASSWORD\r")
         term.expect("Ctrl-C to cancel): ")
         term.send("discarded\x03")
         term.expect("PTREADY> ")
-        output = term.command('[[ $PASSWORD == synthetic-hidden-input ]] && print CANCEL_OK')
+        output = term.command('[[ $PASSWORD == synthetic-visible-input ]] && print CANCEL_OK')
         self.assertIn(b"\r\nCANCEL_OK\r\n", output)
 
     def test_overwrite_cancel_and_accept(self):
@@ -1216,7 +1216,7 @@ bindkey '^X^B' test-preview-guard-state
         term.expect("PTREADY> ")
         self.assertFalse((self.work / "preview-guard-executed").exists())
 
-    def test_empty_hidden_password_passes_guard_but_unset_blocks(self):
+    def test_empty_interactive_password_passes_guard_but_unset_blocks(self):
         term = self.terminal()
         term.command("pt activate")
         term.command("pt guard block")
@@ -1269,6 +1269,7 @@ test_guard_buffer() { print -rn -- "$BUFFER" > guard-buffer; print -r -- "$_pt_g
 zle -N test-guard-buffer test_guard_buffer
 bindkey '^X^B' test-guard-buffer
 """)
+        term.command("pt activate")
         term.command("pt guard warn")
         original = 'print "$TARGET" "$DOMAIN"; touch never-executed'
         term.send(original + "\r")
@@ -1299,6 +1300,7 @@ test_history_buffer() { print -rn -- "$BUFFER" > recalled-buffer; }
 zle -N test-history-buffer test_history_buffer
 bindkey '^X^B' test-history-buffer
 """)
+        term.command("pt activate")
         term.command("pt guard block")
         original = 'print -r -- "$DOMAIN" "$(touch cancelled-substitution)"; touch cancelled-executed'
         term.send(original + "\r")
@@ -1449,8 +1451,6 @@ bindkey '^X^B' test-returned-guard
     def test_edit_shortcut_requires_active_environment(self):
         term = self.terminal()
         term.command("pt guard block")
-        term.send('print "$TARGET"\r')
-        term.expect("[Esc] abort")
         term.send("\x18e")
         term.expect("pt: no active environment; run pt activate before editing.")
 
@@ -1492,6 +1492,7 @@ test_immediate_recall() { print -rn -- "$BUFFER" > immediate-recall; }
 zle -N test-immediate-recall test_immediate_recall
 bindkey '^X^B' test-immediate-recall
 """)
+        term.command("pt activate")
         term.command("pt guard block")
         original = 'print "$TARGET"; touch immediate-executed'
         term.send(original + "\r")
@@ -1514,6 +1515,7 @@ zle -N test-capture-display test_capture_display
 bindkey '^X^D' test-other-display
 bindkey '^X^B' test-capture-display
 """)
+        term.command("pt activate")
         term.command("pt guard block")
         term.send('print "$DOMAIN"\x18\x04\r')
         term.expect("[Esc] abort")
@@ -1532,6 +1534,7 @@ test_guard_pending() { print -r -- "$_pt_guard_pending" > pending-state; }
 zle -N test-guard-pending test_guard_pending
 bindkey '^X^B' test-guard-pending
 """)
+        term.command("pt activate")
         term.command("pt guard warn")
         self.assertIn(b'redisplay', term.command("bindkey -M emacs '^['"))
         term.send('print "$TARGET"\r')
@@ -1543,6 +1546,27 @@ bindkey '^X^B' test-guard-pending
         self.assertEqual((self.work / "pending-state").read_text(), "0\n")
         term.command("touch edited-command")
         self.assertTrue((self.work / "edited-command").exists())
+
+    def test_guard_only_checks_active_environments(self):
+        for mode in ("warn", "block"):
+            with self.subTest(mode=mode):
+                term = self.terminal(before=f"PT_GUARD_MODE={mode}\n")
+                for cycle in range(2):
+                    output = term.command('print -r -- "$MISSING"; touch inactive-accepted')
+                    self.assertNotIn(b"pt: missing", output)
+                    self.assertTrue((self.work / "inactive-accepted").exists())
+                    (self.work / "inactive-accepted").unlink()
+                    term.command("pt activate")
+                    term.send('print -r -- "$MISSING"; touch active-accepted\r')
+                    term.expect("[Esc] abort")
+                    self.assertFalse((self.work / "active-accepted").exists())
+                    term.send("\x03")
+                    term.expect("PTREADY> ")
+                    term.command("pt deactivate")
+                    output = term.command("pt guard")
+                    self.assertIn(f"pt: guard {mode}".encode(), output)
+                output = term.command('print -r -- "$MISSING"')
+                self.assertNotIn(b"pt: missing", output)
 
     def test_warn_requires_second_enter(self):
         term = self.terminal()
@@ -1559,6 +1583,7 @@ bindkey '^X^B' test-guard-pending
 
     def test_warn_detects_unmanaged_variable_without_configuration(self):
         term = self.terminal(before="PT_GUARD_MODE=warn\n")
+        term.command("pt activate")
         term.send('print -r -- "$DOMAIN"; touch automatic-accepted\r')
         output = term.expect("[Enter] run anyway;")
         term.expect('print -r -- "$DOMAIN"; touch automatic-accepted')
@@ -1722,6 +1747,7 @@ bindkey -M vicmd '^X^B' test-vi-state
     def test_vi_mode_selected_after_loading_warns_on_both_enter_bindings(self):
         term = self.terminal()
         term.command("bindkey -v")
+        term.command("pt activate")
         term.command("pt guard warn")
         for mode in ("insert", "command"):
             with self.subTest(mode=mode):
@@ -1953,6 +1979,7 @@ bindkey '^[[A' up-line-or-history
             'auto_sync = false\nupdate_check = false\nhistory_filter = ["cancel-filter-marker"]\n[daemon]\nenabled = false\n'
         )
         term = self.terminal(before=setup)
+        term.command("pt activate")
         term.command("pt guard block")
         term.send('print "$TARGET"; touch cancel-filter-marker\r')
         term.expect("[Esc] abort")

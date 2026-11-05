@@ -30,7 +30,7 @@ Open a new shell to return to your usual setup.
 ```zsh
 pt set TARGET 127.0.0.1
 pt set ACCOUNT test-user
-pt set PASSWORD              # Hidden input; Enter accepts an empty password
+pt set PASSWORD              # Visible input; Enter accepts an empty password
 pt status                    # Show managed values in cleartext
 pt edit                      # Edit defined managed variables
 pt save demo                 # Explicitly save ./demo.env with mode 0600
@@ -119,7 +119,7 @@ Open a new shell after editing startup configuration.
 | `pt activate [NAME]` | Explicit activation; no NAME starts fresh scratch |
 | `pt activate --template NAME` | Activate a home template, ignoring local files |
 | `pt load [-f] [--template] NAME` | Merge values; ask before replacing existing variables |
-| `pt set NAME [VALUE]` | Export a literal string; omit VALUE for hidden input |
+| `pt set NAME [VALUE]` | Export a literal string; omit VALUE for visible input |
 | `pt unset NAME` | Unset a variable until deactivation |
 | `pt edit` | Edit defined managed variables in `$VISUAL`, `$EDITOR`, or `vi` |
 | `pt status` | Show environment, original source, and managed values |
@@ -308,7 +308,9 @@ bindkey -M vicmd '^X^P' pt-preview
 
 ## Enter guard
 
-The guard defaults to `off`. Set `PT_GUARD_MODE=warn` before loading, or run
+The guard only checks commands while a pt environment is active and defaults
+to `off`. Its configured mode is retained across deactivation and reactivation.
+Set `PT_GUARD_MODE=warn` before loading, or run
 `pt guard warn` afterward. `warn` requires a consecutive second Enter on the
 same buffer to run with missing variables; `block` refuses until values are
 defined or a deliberate bypass widget is invoked.
@@ -369,8 +371,9 @@ return status and is not a sandbox. Functions, directories, options, files, and
 external effects are outside the scalar restoration guarantee. `pentest.env`
 is never written by the plugin.
 
-Literal command arguments can enter Zsh and Atuin history. Prefer hidden input
-for credentials. Status, preview, load confirmations, and saved files show
+Literal command arguments can enter Zsh and Atuin history. Use `pt set NAME`
+to enter a value visibly without adding it to command history.
+Status, preview, load confirmations, and saved files show
 cleartext values; recordings and screenshots can capture them. Exclude saved
 environments from Git locally, for example `/demo.env` in `.git/info/exclude`.
 This repository ignores root-level `.env` files. Do not commit real

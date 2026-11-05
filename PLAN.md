@@ -14,7 +14,7 @@ scope.
 
 - [x] MIT license, idempotent plugin loading, and command collision diagnostics.
 - [x] Local-file, template, and fresh scratch activation with scalar restoration.
-- [x] Literal and hidden-input assignments, explicit unsets, status, and renaming.
+- [x] Literal and interactive assignments, explicit unsets, status, and renaming.
 - [x] Variable editing with isolated validation and missing-variable placeholders.
 - [x] Atomic saves with mode `0600`, overwrite confirmation, and path protections.
 - [x] Merge loading with per-variable confirmation, force flags, and rollback.

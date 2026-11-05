@@ -3,7 +3,7 @@ _pt_help() {
   activate [NAME]            Activate by name; omit NAME for a fresh scratch environment
   activate --template NAME   Activate a home template
   load [-f] [--template] NAME  Merge values; confirm replacements (-f skips prompts)
-  set NAME [VALUE]            Export a literal value; omit VALUE for hidden input
+  set NAME [VALUE]            Export a literal value; omit VALUE for visible input
   unset NAME                 Unset a variable until deactivation
   edit                       Edit defined environment variables in VISUAL or EDITOR
   status                     Show state and managed values in cleartext
@@ -34,13 +34,12 @@ _pt_set() {
   if (( $# == 2 )); then
     _pt_set_value=$2
   else
-    [[ -t 0 ]] || { _pt_error 'hidden input requires a terminal; pass VALUE explicitly.'; return 1; }
-    if ! IFS= read -r -s "_pt_set_value?pt: $_pt_set_name (hidden; Ctrl-C to cancel): "; then
+    [[ -t 0 ]] || { _pt_error 'interactive input requires a terminal; pass VALUE explicitly.'; return 1; }
+    if ! IFS= read -r "_pt_set_value?pt: $_pt_set_name (Ctrl-C to cancel): "; then
       print -u2
       _pt_error 'input cancelled.'
       return 1
     fi
-    print -u2
   fi
   # Remove numeric/case attributes before assignment to keep input literal.
   builtin unset -- "$_pt_set_name" || return 1
